@@ -4,8 +4,7 @@
 void Matriz::agregarCaracter(char c, char rgb[])
 {
 	++uc;
-	// TODO comprobar el tamaño de rgb
-	// [fila][columna][color]
+
 	char t;
 	int i;
 	
