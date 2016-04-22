@@ -1,19 +1,24 @@
-#include <WString.h>
+/*#include <WString.h>
 #include "matriz.h"
-#include 
+
+int rgb(byte r, byte g, byte b)
+{
+	int res = b;
+	res <<= 8;
+	res |= g;
+	res <<= 8;
+	res |= r;
+	return res;
+}
+
 void Matriz::agregarCaracter(char c, char rgb[])
 {
-	++uc;
 
-	char t;
-	int i;
-	
-	}
 }
 
 bool Matriz::mostrarTexto(String s, char efecto)
 {
-	for(int i = 0, len = s.length(); i < len; i++)
+	for(int i = 0, len = s.length(); i < len; i++)qu
 	{
 		
 	}
@@ -22,5 +27,4 @@ bool Matriz::mostrarTexto(String s, char efecto)
 void Matriz::print()
 {
 
-}
-
+}*/
