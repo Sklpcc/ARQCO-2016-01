@@ -11,27 +11,27 @@
 	- add comments
 	- test PWM instead of BCM
 */
-#define latch	40 //pin 12 storage ST-CP
-#define enable	41 //pin 13 OE
-#define spi_ data	51 //pin 14 data DS
-#define spi_clock	52 //pin 11 SH-CP
+#define latch			40 //pin 12 storage ST-CP
+#define enable			41 //pin 13 OE
+#define spi_data		51 //pin 14 data DS
+#define spi_clock		52 //pin 11 SH-CP
 
-#define _RED	0
-#define _GREEN	1
-#define _BLUE	2
+#define _RED			0
+#define _GREEN			1
+#define _BLUE			2
 
-#define _FIRST_CYCLE	8
-#define _SECOND_CYCLE	24
-#define _THIRD_CYCLE	56
-#define _FOURTH_CYCLE	120
+#define _FIRST_CYCLE		8
+#define _SECOND_CYCLE		24
+#define _THIRD_CYCLE		56
+#define _FOURTH_CYCLE		120
 
-#define _MATRICES	1
-#define _ROWS		8
-#define _COLUMNS	(_MATRICES << 3) //leds per row
-#define _BCM_RESOLUTION 4
-#define _SPEED		0x25
+#define _MATRICES		1
+#define _ROWS			8
+#define _COLUMNS		(_MATRICES << 3) //leds per row
+#define _BCM_RESOLUTION		4
+#define _SPEED			0x25
 
-#define _CLOCK_SPEED_DIV_2 8000000
+#define _CLOCK_SPEED_DIV_2	8000000
 
 //colors[color][bit][byte]
 //colors[r,g,b][bits - binary code modulation][8 * bytes = bits]
