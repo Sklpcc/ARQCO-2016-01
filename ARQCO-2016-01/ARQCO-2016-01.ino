@@ -12,7 +12,6 @@
 	- add more comments
 	- test PWM instead of BCM
 */
-<<<<<<< HEAD
 #define latch				40 //pin 12 storage ST-CP
 #define enable				41 //pin 13 OE
 #define spi_data			51 //pin 14 data DS
@@ -21,36 +20,18 @@
 #define _RED				0
 #define _GREEN				1
 #define _BLUE				2
-=======
-#define latch			40 //pin 12 storage ST-CP
-#define enable			41 //pin 13 OE
-#define spi_data		51 //pin 14 data DS
-#define spi_clock		52 //pin 11 SH-CP
-
-#define _RED			0
-#define _GREEN			1
-#define _BLUE			2
->>>>>>> 4aec26f7db5ff1df22219a1bbf8b02cc6f71b574
 
 #define _FIRST_CYCLE		8
 #define _SECOND_CYCLE		24
 #define _THIRD_CYCLE		56
 #define _FOURTH_CYCLE		120
 
-<<<<<<< HEAD
 #define _MATRICES			1
 #define _ROWS				8
 #define _COLUMNS			(_MATRICES << 3) //leds per row
 #define _BCM_RESOLUTION		4
 #define _SPEED				0x25
 #define _USER_FRIENDLY
-=======
-#define _MATRICES		1
-#define _ROWS			8
-#define _COLUMNS		(_MATRICES << 3) //leds per row
-#define _BCM_RESOLUTION		4
-#define _SPEED			0x25
->>>>>>> 4aec26f7db5ff1df22219a1bbf8b02cc6f71b574
 
 #define _CLOCK_SPEED_DIV_2	8000000
 
@@ -159,7 +140,6 @@ void clearMatrix()
 			for(int k = 0; k < _COLUMNS; ++k) //bytes
 				colors[i][j][k] = 0xFF;
 }
-<<<<<<< HEAD
 
 
 //FUNCTIONS
@@ -247,5 +227,3 @@ void loadCharacter(byte character)
 
 	}
 }
-=======
->>>>>>> 4aec26f7db5ff1df22219a1bbf8b02cc6f71b574
