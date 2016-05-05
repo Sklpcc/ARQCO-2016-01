@@ -1,16 +1,29 @@
+
 #include <SPI.h>
 #include "util.h"
+#include "RGB.h"
 
 /*
-	TODO:
-	- make some animations
-	- increase the speed changing digitalWrite and similar functions within ISR
-	- add rgb support
-	- make matrix class
-	- maybe extend BCM to 8bit resolution
-	- search for inline keyword
-	- add more comments
-	- test PWM instead of BCM
+	TODO: (* means in progress)
+
+		MOST IMPORTANT:
+		- make some animations
+		-* improve BCM with a struct or a class to make it more readable (RGB class)
+		- increase the speed changing digitalWrite and similar functions within ISR
+		-* add rgb support
+		- make matrix class
+
+		LEAST IMPORTANT
+		- maybe extend BCM to 8bit resolution
+		- search for inline keyword
+		- add more comments
+		- test PWM instead of BCM
+
+	CHANGELOG:
+		- start RGB support
+		- created noISR function for debug purposes
+		- created character handler to safely memory management (character_handler)
+		- Fixed char_index values
 */
 #define latch				40 //pin 12 storage ST-CP
 #define enable				41 //pin 13 OE
@@ -31,31 +44,31 @@
 #define _COLUMNS			(_MATRICES << 3) //leds per row
 #define _BCM_RESOLUTION		4
 #define _SPEED				0x25
-#define _USER_FRIENDLY
+
+#define _DELAY				1000
 
 #define _CLOCK_SPEED_DIV_2	8000000
+
+volatile unsigned int maxValueForBCMResolution;
 
 //colors[r,g,b][bcm][filas][columnas/8 = bytes]
 byte colors[3][_BCM_RESOLUTION][_ROWS][_MATRICES]; // bool colors[3][4][8][8*_MATRICES];
 //I don't use bool or boolean because the implementation may take up more space than expected... bool colors[3][_ROWS][_COLUMNS][_BCM_RESOLUTION]
 
 volatile byte bitBCM, row;
-volatile unsigned int counterBCM, rowByte, maxValueForBCMResolution; //uint8_t¿?
+volatile unsigned int counterBCM, rowByte; //uint8_t¿?
 SPISettings spiCONF;
-volatile byte buffer[21] = { 0 };
-
+RGB colorTemp;
 
 void setup()
 {
-	//Serial.begin(9600);
+	cli();
+	colorTemp = RGB(6, 2, 12, true);
 
-	cli(); //nointerrupts
-	
-	rowByte = 0;
-	row = 1;
+	row = 0;
 	bitBCM = 0;
 	counterBCM = 0;
-	
+
 	pinMode(latch, OUTPUT);
 	//pinMode(enable, OUTPUT);
 	pinMode(spi_data, OUTPUT);
@@ -64,9 +77,10 @@ void setup()
 	setupISR();
 	setupSPI();
 	setMaxValue();
-
 	clearMatrix();
-	loadCharacter('0');
+	unsigned char c = '~';
+
+	set_Char(c, colorTemp);
 	sei();
 }
 
@@ -87,8 +101,8 @@ ISR(TIMER1_COMPA_vect)
 	SPI.beginTransaction(spiCONF);
 	for (int i = 0; i < 3; ++i) //color
 		for (int j = 0; j < _MATRICES; ++j)//leds per row
-			SPI.transfer(colors[i][bitBCM][rowByte][j]);
-	SPI.transfer(row);
+			SPI.transfer(colors[i][bitBCM][row][j]);
+	SPI.transfer(1 << row);
 	SPI.endTransaction();
 	
 	//Control 595
@@ -98,17 +112,50 @@ ISR(TIMER1_COMPA_vect)
 	pinMode(enable, OUTPUT);
 	
 	//Increment
-	++counterBCM;
-	row <<= 1;
-	rowByte += 1;
+	counterBCM += 1;
+	row += 1;
 	
 	//Reset
 	if (counterBCM == _FOURTH_CYCLE)
 		counterBCM = bitBCM = 0;
-	if (row == 0)
-		row = 1;
-	if (rowByte == _ROWS)
-		rowByte = 0;
+	if (row == _ROWS)
+		row = 0;
+	//delay(_DELAY);
+}
+
+void noISR()
+{
+	digitalWrite(enable, HIGH);
+
+	//BCM control
+	if (counterBCM == _FIRST_CYCLE || counterBCM == _SECOND_CYCLE || counterBCM == _THIRD_CYCLE)
+		bitBCM += 1;
+
+	//Transfer
+	SPI.beginTransaction(spiCONF);
+	for (int i = 0; i < 3; ++i) //color
+		for (int j = 0; j < _MATRICES; ++j)//leds per row
+		{
+			SPI.transfer(colors[i][bitBCM][row][j]);
+		}
+	SPI.transfer(1 << row);
+	SPI.endTransaction();
+
+	//Control 595
+	digitalWrite(latch, HIGH);
+	digitalWrite(latch, LOW);
+	digitalWrite(enable, LOW);
+	pinMode(enable, OUTPUT);
+
+	//Increment
+	counterBCM += 1;
+	row += 1;
+
+	//Reset
+	if (counterBCM == _FOURTH_CYCLE)
+		counterBCM = bitBCM = 0;
+	if (row == _ROWS)
+		row = 0;
 }
 
 void setupSPI()
@@ -128,7 +175,7 @@ void setupISR()
 
 void setMaxValue()
 {
-	maxValueForBCMResolution = 0;
+	maxValueForBCMResolution = 0;//(1 << (_BCM_RESOLUTION + 1)) - 1;
 	for(int i = 0; i < _BCM_RESOLUTION; ++i)
 		maxValueForBCMResolution |= (1<<i);
 }
@@ -137,8 +184,9 @@ void clearMatrix()
 {
 	for (int i = 0; i < 3; ++i) //color
 		for(int j = 0; j < 4; ++j) //bits
-			for(int k = 0; k < _COLUMNS; ++k) //bytes
-				colors[i][j][k] = 0xFF;
+			for(int k = 0; k < _ROWS; ++k) //rows
+				for(int l = 0; l < _MATRICES; ++l) //columns
+					colors[i][j][k][l] = 0xFF;
 }
 
 
@@ -154,76 +202,38 @@ void setColumn(byte column, byte red, byte green, byte blue)
 
 }
 
-void setLED(byte row, byte column, byte red, byte green, byte blue)
+void setLED(byte row, byte column,  RGB &color)
 {
-	row    = constrain(row,0, 7);
+	row    = constrain(row,0, _ROWS - 1);
 	column = constrain(column, 0, _COLUMNS - 1);
-	red    = constrain(red, 0, maxValueForBCMResolution);
-	green  = constrain(green, 0, maxValueForBCMResolution);
-	blue   = constrain(blue, 0, maxValueForBCMResolution);
 
 	int _byte = column >> 3;
 	int _rbit = column - (_byte << 3);
-
-#ifdef _USER_FRIENDLY
-	red   = maxValueForBCMResolution - red;
-	green = maxValueForBCMResolution - green;
-	blue  = maxValueForBCMResolution - blue;
-#endif //_USER_FRIENDLY
-
-	for (int i = 0; i < _BCM_RESOLUTION; ++i)
+	for (int i = 0; i < 3; ++i) //colors
 	{
-		//byte = value << bit
-		if ((red >> i) & 1)
-			colors[_RED][i][row][_byte] |= (1 << _rbit);
-		else
-			colors[_RED][i][row][_byte] &= ~(1 << _rbit);
-	}
-	for (int i = 0; i < _BCM_RESOLUTION; ++i)
-	{
-		if ((green >> i) & 1)
-			colors[_GREEN][i][row][_byte] |= (1 << _rbit);
-		else
-			colors[_GREEN][i][row][_byte] &= ~(1 << _rbit);
-	}
-	for (int i = 0; i < _BCM_RESOLUTION; ++i)
-	{
-		if ((blue >> i) & 1)
-			colors[_BLUE][i][row][_byte] |= (1 << _rbit);
-		else
-			colors[_BLUE][i][row][_byte] &= ~(1 << _rbit);
+		byte actualColor = color.getComponent(i);
+		for (int j = 0; j < _BCM_RESOLUTION; ++j)
+		{
+			if ((actualColor >> j) & 1)
+				colors[i][j][row][_byte] |= (1 << _rbit);
+			else
+				colors[i][j][row][_byte] &= ~(1 << _rbit);
+		}
 	}
 }
 
-void SerialPrintCharacter(byte character)
+void set_Char(unsigned char character, RGB &color)
 {
-	//Serial.print("Caracter: "); Serial.println((unsigned char)(character));
-	character -= 32;
-	int pos = pgm_read_word_near(char_index + character);
-	int size = pgm_read_byte_near(charmap + pos);
-	//Serial.print("pos: "); Serial.println(pos);
-	//Serial.print("size: "); Serial.println(size);
-	pos = pos + 1;
-	for (int i = 0; i < size; ++i)
+	character_handler ch(character);
+	for (int i = 0; i < ch.size; ++i)
 	{
-		//Serial.print(pgm_read_byte_near(charmap+pos+i));
-		//Serial.print(" ");
-	}
-	//Serial.println();
-}
-
-void loadCharacter(byte character)
-{
-	character -= 32;
-	int pos = pgm_read_word_near(char_index + character);
-	int size = pgm_read_byte_near(charmap + pos);
-	pos = pos + 1;
-	for (int i = 0; i < size; ++i)
-	{
-		buffer[8 + i] = pgm_read_byte_near(charmap + pos + i);
-	}
-	for (int i = 0; i < 8; ++i)
-	{
-
+		byte value = ch.getByte(i);
+		for (int j = 0; j < _ROWS; ++j)
+		{
+			if (value & (1 << j))
+			{
+				setLED(j, i, color);
+			}
+		}
 	}
 }
