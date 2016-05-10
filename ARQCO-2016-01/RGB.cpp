@@ -3,20 +3,34 @@
 
 RGB::RGB()
 {
+#ifdef _USER_FRIENDLY
+	red = green = blue = _MAX_VALUE_BCM;
+#else
 	red = green = blue = 0;
+#endif
 }
 
-RGB::RGB(byte red, byte green, byte blue, bool friendly)
+RGB::RGB(byte red, byte green, byte blue)
 {
-	if (friendly)
-	{
-		red = _MAX_VALUE - red;
-		green = _MAX_VALUE - green;
-		blue = _MAX_VALUE - blue;
-	}
-	this->red = constrain(red, 0, _MAX_VALUE);
-	this->green = constrain(green, 0, _MAX_VALUE);
-	this->blue = constrain(blue, 0, _MAX_VALUE);
+#ifdef _USER_FRIENDLY
+		red = _MAX_VALUE_BCM - red;
+		green = _MAX_VALUE_BCM - green;
+		blue = _MAX_VALUE_BCM - blue;
+#endif
+	this->red = constrain(red, 0, _MAX_VALUE_BCM);
+	this->green = constrain(green, 0, _MAX_VALUE_BCM);
+	this->blue = constrain(blue, 0, _MAX_VALUE_BCM);
+}
+
+RGB::RGB(byte all)
+{
+#ifdef _USER_FRIENDLY
+	all = _MAX_VALUE_BCM - all;
+#endif
+	all = constrain(all, 0, _MAX_VALUE_BCM);
+	this->red = all;
+	this->green = all;
+	this->blue = all;
 }
 
 byte RGB::getComponent(byte pos)
