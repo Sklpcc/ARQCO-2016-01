@@ -1,53 +1,60 @@
-//#define _DEBUG
-#include <SPI.h>
-#include "util.h"
-#include "RGB.h"
-#include "macros.h"
+#include "globarHeader.h"
 
 /*
 	TODO: (* means in progress)
 
 		PROBLEMS:
 		- Row at max brightness in 3 colors banishes blue
-		- UTF-8 to extended ascii conversion, maybe a string class that wrap it
 
 		MOST IMPORTANT:
 		-* make some animations
-		-* improve BCM with a struct or a class to make it more readable (RGB class)
 		- increase the speed changing digitalWrite and similar functions within ISR
-		-* add rgb support
-		- make matrix class
 
 		LEAST IMPORTANT
+		- enhance rgb
 		- maybe extend BCM to 8bit resolution
 		- add more comments
 		- test PWM instead of BCM
 
 	CHANGELOG:
-		- Fixed character values
-		- First animation, text right to left
+		- matrix class created
+		- rgb support complete
+		- utf-8 strings fixed
 
 */
+
+//14, 13, 12, 11 => 51 41 40 52
 #define latch				40 //pin 12 storage ST-CP
 #define enable				41 //pin 13 OE
 #define spi_data				51 //pin 14 data DS
 #define spi_clock			52 //pin 11 SH-CP
 //colors[r,g,b][bcm][filas][columnas/8 = bytes]
-byte colors[3][_BCM_RESOLUTION][_ROWS][_MATRICES]; // bool colors[3][4][8][8*_MATRICES];
+//byte colors[3][_BCM_RESOLUTION][_ROWS][_MATRICES]; // bool colors[3][4][8][8*_MATRICES];
 //I don't use bool or boolean because the implementation may take up more space than expected... bool colors[3][_ROWS][_COLUMNS][_BCM_RESOLUTION]
 
 volatile byte bitBCM, row;
 volatile unsigned int counterBCM, rowByte; //uint8_t¿?
-SPISettings spiCONF;
-volatile byte buffer[_MAX_BUFFER_SIZE];
-RGB colorBuffer[_MAX_COLOR_BUFFER_SIZE];
-unsigned int lastRowUsed, lastIndexColor;
+Matrix M(_CLOCK_SPEED_DIV_2, MSBFIRST, SPI_MODE0);
+
+byte pacman[2][5] = {{28,62,54,34,0},
+					{ 28,62,62,62,28 } };
+
+#define RIGHT 0
+#define LEFT 1
+#define DOWN 2
+
+const byte pieces[7][4] = { {1,3,2,0},
+						   {1,3,1,0},
+						   {2,3,1,0},
+						   {3,3,0,0},
+						   {1,1,3,0},
+						   {3,1,1,0},
+						   {1,1,1,1} };
 
 void setup()
 {
 	cli();
 	_DEBUG_INIT(9600);
-	lastRowUsed = 0;
 	row = 0;
 	bitBCM = 0;
 	counterBCM = 0;
@@ -57,41 +64,124 @@ void setup()
 	pinMode(spi_clock, OUTPUT);
 
 	setupISR();
-	setupSPI();
-	fillMatrix(caster(RGB(0,0,0)));
-	String s = "000000000000000000000000000000000000000000"
+	M.fillMatrix(caster(RGB(0,0,0)));
 	sei();
 }
 
 void loop()
 {
 	//animations
-	//noISR();
-	/*colorTemp = RGB(random(0,16), random(0,16), random(0,16));
-	fillMatrix(colorOff);
-	setRow(0, colorTemp);
-	delay(100);
-	fillMatrix(colorOff);
-	setColumn(0, colorTemp);
-	delay(100);
-	fillMatrix(colorOff);
-	setRow(7, colorTemp);
-	delay(100);
-	fillMatrix(colorOff);
-	setColumn(7, colorTemp);
-	delay(100);*/
-	/*for (int i = _FIRST_CHAR; i <= _LAST_CHAR; ++i)
-	{
-		fillMatrix(caster(RGB(0, 0, 0)));
-		set_Char(i, caster(RGB(12, 0, 0)));
-		delay(300);
-	}*/
-	setBuffer(caster(String("A B C D E F G H I J K L M N O P Q R S T U V X Y Z")));
-	//setLED(0, 0, caster(RGB(15, 0, 0)));
+	//pacmanEfecto();
+	M.setBuffer(caster(utf8ascii(String("String"))), 500, caster(RGB(15,0,0)));
 
-	delay(2000);
+	//delay(2000);
 	
 }
+
+/*class TetrisPiece
+{
+	int top, left;
+	int rows, columns; //max 4 rows, and 4 columns
+	byte piece[4];
+	TetrisPiece(int p)
+	{
+		rows = 2;
+		columns = 3;
+		if (p == 3)
+			columns = 2;
+		else if (p == 6)
+			rows = 1, columns = 4;
+		for (int i = 0; i < 4; ++i)
+			piece[i] = pieces[p][i];
+	}
+	int move(int direction)
+	{
+		if (direction == RIGHT)
+		{
+			if (left + rows < _ROWS)
+			{
+				left += 1;
+				return 1;
+			}
+			else
+				return 0;
+		}
+		else if (direction == LEFT)
+		{
+			if (left - 1 >= 0)
+			{
+				left -= 1;
+				return 1;
+			}
+			else
+				return 0;
+		}
+		else if (direction == DOWN)
+		{
+			//colission dectection
+			//corregir confusion de filas y columnas
+			for (int j = 0; j < columns; ++j)
+			{
+				for (int i = 0; i < rows; ++i)
+				{
+					if (i + top > piece[j] & (1 << i))
+					{
+						if (LEDstate(i + top, j + left))
+						{
+							//col
+							return 2;
+						}
+					}
+				}
+			}
+			return 1;
+		}
+	}
+	bool turn(int direction)
+	{
+		if (direction == LEFT)
+		{
+
+		}
+		else if (direction == RIGHT)
+		{
+
+		}
+	}
+};*/
+
+/*void pacmanEfecto()
+{
+	//129 for walls
+	for (int i = 0; i < 64; ++i)
+	{
+		bool x = (random(0, 2) && (i > 8) && (buffer[i-1] == 65));
+		buffer[i] = 65 + (x ? 8 : 0);
+	}
+	for (int p = 0; p < 64 - _COLUMNS; ++p)
+	{
+		fillMatrix(caster(RGB(0)));
+		loadToRealBuffer(p);
+		for (int k = 0; k < 2; ++k)
+		{
+			int columnas = (k ? 5 : 4);
+			for (int i = 0; i < columnas; ++i)
+			{
+				byte value = pacman[k][i];
+				for (int j = 1; j < _ROWS-2; ++j)
+				{
+					if (value & (1 << j))
+					{
+						setLED(j, i, caster(RGB(3, 15, 0)));
+					}
+					else
+						setLED(j, i, caster(RGB(0)));
+				}
+			}
+			delay(260);
+		}
+	}
+}*/
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -102,12 +192,7 @@ ISR(TIMER1_COMPA_vect)
 		bitBCM += 1;
 	
 	//Transfer
-	SPI.beginTransaction(spiCONF);
-	for (int i = 0; i < 3; ++i) //color
-		for (int j = 0; j < _MATRICES; ++j)//leds per row
-			SPI.transfer(colors[i][bitBCM][row][j]);
-	SPI.transfer(1 << row);
-	SPI.endTransaction();
+	M.transfer(bitBCM, row);
 	
 	//Control 595
 	digitalWrite(latch, HIGH);
@@ -135,14 +220,7 @@ void noISR()
 		bitBCM += 1;
 
 	//Transfer
-	SPI.beginTransaction(spiCONF);
-	for (int i = 0; i < 3; ++i) //color
-		for (int j = 0; j < _MATRICES; ++j)//leds per row
-		{
-			SPI.transfer(colors[i][bitBCM][row][j]);
-		}
-	SPI.transfer(1 << row);
-	SPI.endTransaction();
+	M.transfer(bitBCM, row);
 
 	//Control 595
 	digitalWrite(latch, HIGH);
@@ -162,12 +240,6 @@ void noISR()
 	delay(_DELAY);
 }
 
-void setupSPI()
-{
-	spiCONF = SPISettings(_CLOCK_SPEED_DIV_2, MSBFIRST, SPI_MODE0);
-	SPI.begin();
-}
-
 void setupISR()
 {
 	TCCR1A = B00000000; //clear TCCR1A
@@ -177,151 +249,37 @@ void setupISR()
 	TIMSK1 |= (1 << OCIE1A); //enable timer
 }
 
-void fillMatrix(RGB &color)
+byte utf8ascii(byte ascii, byte &last)
 {
-	for (int i = 0; i < 3; ++i)
+	if (ascii<128)   // Standard ASCII-set 0..0x7F handling  
 	{
-		byte actualColor = color.getComponent(i);
-		//_DEBUG(actualColor);
-		for (int j = 0; j < _BCM_RESOLUTION; ++j)
-			for (int k = 0; k < _ROWS; ++k)
-				for (int l = 0; l < _MATRICES; ++l)
-					if ((actualColor >> j) & 1)
-						colors[i][j][k][l] |= B11111111;
-					else
-						colors[i][j][k][l] &= B00000000;
+		last = 0;
+		return(ascii);
 	}
+
+	// get previous input
+	byte c_last = last;   // get last char
+	last = ascii;         // remember actual character
+
+	switch (c_last)     // conversion depnding on first UTF8-character
+	{
+	case 0xC2: return  (ascii);  break;
+	case 0xC3: return  (ascii | 0xC0);  break;
+	case 0x82: if (ascii == 0xAC) return(0x80);       // special case Euro-symbol
+	}
+	return 0;                                     // otherwise: return zero, if character has to be ignored
 }
 
-//FUNCTIONS
-
-void setRow(byte row, RGB &color)
+String utf8ascii(const String &s)
 {
-	row = constrain(row, 0, _ROWS - 1);
-	for (int i = 0; i < 3; ++i)
+	String r = "";
+	char c;
+	byte last = 0;
+	for (int i = 0, len = s.length(); i < len; i += 1)
 	{
-		byte actualColor = color.getComponent(i);
-		for (int j = 0; j < _BCM_RESOLUTION; ++j)
-			for(int l = 0; l < _MATRICES; ++l)
-				if ((actualColor >> j) & 1)
-					colors[i][j][row][l] |= B11111111;
-				else
-					colors[i][j][row][l] &= B00000000;
+		c = utf8ascii(s[i], last);
+		if (c)
+			r += c;
 	}
-}
-
-void setColumn(byte column, RGB &color)
-{
-	column = constrain(column, 0, _COLUMNS - 1);
-
-	int _byte = column >> 3;
-	int _rbit = column - (_byte << 3);
-
-	for (int i = 0; i < 3; ++i)
-	{
-		byte actualColor = color.getComponent(i);
-		for (int j = 0; j < _BCM_RESOLUTION; ++j)
-			for (int k = 0; k < _ROWS; ++k)
-				if ((actualColor >> j) & 1)
-					colors[i][j][k][_byte] |= (1 << _rbit);
-				else
-					colors[i][j][k][_byte] &= ~(1 << _rbit);
-	}
-}
-
-void setLED(byte row, byte column,  RGB &color)
-{
-	row = constrain(row, 0, _ROWS - 1);
-	column = constrain(column, 0, _COLUMNS - 1);
-
-	int _byte = column >> 3;
-	int _rbit = column - (_byte << 3);
-
-	for (int i = 0; i < 3; ++i)
-	{
-		byte actualColor = color.getComponent(i);
-		for (int j = 0; j < _BCM_RESOLUTION; ++j)
-		{
-			if ((actualColor >> j) & 1)
-				colors[i][j][row][_byte] |= (1 << _rbit);
-			else
-				colors[i][j][row][_byte] &= ~(1 << _rbit);
-		}
-	}
-}
-
-void set_Char(unsigned char character, RGB &color)
-{
-	_DEBUG_PRINT(character);
-	character_handler ch(character);
-	for (int i = 0; i < ch.size; ++i)
-	{
-		byte value = ch.getByte(i);
-		for (int j = 0; j < _ROWS; ++j)
-		{
-			if (value & (1 << j))
-			{
-				setLED(j, i, color);
-			}
-		}
-	}
-}
-
-bool setBuffer(String &s)
-{
-	int len = s.length();
-	if (len == 0 || len > 100)
-		return false;
-	//load to buffer
-	_DEBUG_PRINT(s);
-	lastIndexColor = lastRowUsed = 0;
-	for (int i = 0; i < len; ++i)
-	{
-		loadCharacter(s[i], caster(RGB(random(0,16), random(0,16), random(0, 16))), lastRowUsed, lastIndexColor);
-	}
-	for (int i = lastRowUsed; i <= lastRowUsed + _COLUMNS; ++i)
-	{
-		buffer[i] = 0;
-	}
-	for (int i = _COLUMNS; i < lastRowUsed + 1; ++i)
-		_DEBUG_PRINT(buffer[i]);
-	//lastRowUsed terminana apuntando al ultimo byte del ultimo caracter subido
-	//now, let animation flow (print)
-	show(0, lastRowUsed + _COLUMNS + 1);
-	return true;
-}
-
-
-void show(int from, int to)
-{
-	int colorInd = 0;
-	do
-	{
-		fillMatrix(caster(RGB(0, 0, 0)));
-		for (int i = 0; i < _COLUMNS; ++i)
-		{
-			for (int j = 0; j < _ROWS; ++j)
-			{
-				if (buffer[i + from] & (1 << j))
-					setLED(j, i, colorBuffer[colorInd]);
-			}
-		}
-		from += 1;
-		delay(100);
-	} while (from + _COLUMNS < to);
-}
-
-void loadCharacter(byte character, RGB & color, unsigned int &start, unsigned int &colorStart)
-{
-	colorBuffer[colorStart++] = color;
-	if (start == 0)
-	{
-		start = _COLUMNS;
-	}
-
-	character_handler ch(character);
-	for (int i = 0; i < ch.size; ++i)
-	{
-		buffer[start++] = ch.getByte(i);
-	}
+	return r;
 }

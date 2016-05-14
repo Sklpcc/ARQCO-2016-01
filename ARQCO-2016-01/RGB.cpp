@@ -49,3 +49,10 @@ RGB::RGB(const RGB &color)
 	this->green = color.green;
 	this->blue = color.blue;
 }
+
+void RGB::print()
+{
+	_DEBUG_PRINT(red);
+	_DEBUG_PRINT(green);
+	_DEBUG_PRINT(blue);
+}

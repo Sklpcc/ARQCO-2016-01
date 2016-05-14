@@ -1,12 +1,20 @@
 
-#pragma once
-
 #ifndef _MACROS_H_
 #define _MACROS_H_
+
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "arduino.h"
+#else
+#include "WProgram.h"
+#endif
 
 #define _RED					0
 #define _GREEN				1
 #define _BLUE				2
+
+#define _RAINBOW 1
+#define _WORD_BY_WORD 2
+#define _ONE_COLOR 3
 
 #define _FIRST_CYCLE			8		//for first bit by each row (1 cycle * 8 rows)
 #define _SECOND_CYCLE		24		//for second bit (2 cycle * 8 rows) + _FIRST_CYCLE
@@ -34,6 +42,8 @@
 #define _LEFT_TO_RIGHT		2
 #define _TOP_TO_BOTTOM		4
 #define _BOTTOM_TO_TOP		8
+
+#define _DEBUG
 
 #ifdef _DEBUG
 #define _DEBUG_INIT(x)\

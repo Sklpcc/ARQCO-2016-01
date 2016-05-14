@@ -1,9 +1,8 @@
-#include <avr/pgmspace.h>
-
 #ifndef _UTIL_H_
 #define _UTIL_H_
 
 #include "macros.h"
+#include <avr/pgmspace.h>
 
 const byte charmap[] PROGMEM =
 {

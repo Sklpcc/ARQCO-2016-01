@@ -1,7 +1,5 @@
-#pragma once
 #ifndef _RGB_H_
 #define _RGB_H_
-#include <Arduino.h>
 #include "macros.h"
 struct RGB
 {
@@ -12,5 +10,6 @@ struct RGB
 	RGB(byte all);
 	RGB(const RGB &color);
 	byte getComponent(byte pos);
+	void print();
 };
 #endif // _RGB_H_
