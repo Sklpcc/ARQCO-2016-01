@@ -7,20 +7,19 @@
 		- Row at max brightness in 3 colors banishes blue
 
 		MOST IMPORTANT:
-		-* make some animations
+		-* finish all animations
+		- add asynchronous buttons for reset and animations
 		- increase the speed changing digitalWrite and similar functions within ISR
 
 		LEAST IMPORTANT
 		- enhance rgb
-		- maybe extend BCM to 8bit resolution
-		- add more comments
+		- maybe extend BCM to 8 bit resolution
 		- test PWM instead of BCM
+		- add more comments
 
 	CHANGELOG:
-		- matrix class created
-		- rgb support complete
-		- utf-8 strings fixed
-
+		- matrix class improved:
+		- now utf-8 string methods are inside matrix class
 */
 
 //14, 13, 12, 11 => 51 41 40 52
@@ -62,6 +61,11 @@ void setup()
 	pinMode(latch, OUTPUT);
 	pinMode(spi_data, OUTPUT);
 	pinMode(spi_clock, OUTPUT);
+	
+	pinMode(2, INPUT);
+	pinMode(3, INPUT);
+	pinMode(18, INPUT);
+	pinMode(19, INPUT);
 
 	setupISR();
 	M.fillMatrix(caster(RGB(0,0,0)));
@@ -71,11 +75,28 @@ void setup()
 void loop()
 {
 	//animations
-	//pacmanEfecto();
-	M.setBuffer(caster(utf8ascii(String("String"))), 500, caster(RGB(15,0,0)));
-
-	//delay(2000);
-	
+	M.setBuffer("Ho");
+	while (true)
+	{
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 3000, _STATIC);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(0, 0, 15)), 3000, _STATIC);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _RIGHT_TO_LEFT);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _LEFT_TO_RIGHT);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _TOP_TO_BOTTOM);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _BOTTOM_TO_TOP);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _TOP_TO_BOTTOM | _FADE_IN);
+		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _BOTTOM_TO_TOP | _FADE_IN);
+		delay(100);
+		M.fillMatrix(caster(RGB(0)));
+		delay(1000);
+	}
 }
 
 /*class TetrisPiece
@@ -247,39 +268,4 @@ void setupISR()
 	TCCR1B |= ((1 << WGM12) | (1 << CS11) | (1 << CS10));
 	OCR1A  = _SPEED; //set timer
 	TIMSK1 |= (1 << OCIE1A); //enable timer
-}
-
-byte utf8ascii(byte ascii, byte &last)
-{
-	if (ascii<128)   // Standard ASCII-set 0..0x7F handling  
-	{
-		last = 0;
-		return(ascii);
-	}
-
-	// get previous input
-	byte c_last = last;   // get last char
-	last = ascii;         // remember actual character
-
-	switch (c_last)     // conversion depnding on first UTF8-character
-	{
-	case 0xC2: return  (ascii);  break;
-	case 0xC3: return  (ascii | 0xC0);  break;
-	case 0x82: if (ascii == 0xAC) return(0x80);       // special case Euro-symbol
-	}
-	return 0;                                     // otherwise: return zero, if character has to be ignored
-}
-
-String utf8ascii(const String &s)
-{
-	String r = "";
-	char c;
-	byte last = 0;
-	for (int i = 0, len = s.length(); i < len; i += 1)
-	{
-		c = utf8ascii(s[i], last);
-		if (c)
-			r += c;
-	}
-	return r;
 }
