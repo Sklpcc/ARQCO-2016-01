@@ -26,7 +26,7 @@
 #define _COLUMNS				(_MATRICES << 3) //leds per row
 
 #define _BCM_RESOLUTION		4
-#define _MAX_VALUE_BCM		((_1 << _BCM_RESOLUTION) - 1)
+#define _MAX_VALUE_BCM		((1 << _BCM_RESOLUTION) - 1)
 #define _SPEED				0x25
 #define _DELAY				1000
 
@@ -45,9 +45,13 @@
 #define _STATIC				16
 #define _FADE_IN				32
 #define _USE_LAST			64
+#define _LEFT_SPACES			128
+#define _RIGHT_SPACES			256
 
 #define _FIRST_CHAR 32
 #define _LAST_CHAR 255
+
+#define _MAX_EFFECT 7
 
 
 #ifdef _DEBUG

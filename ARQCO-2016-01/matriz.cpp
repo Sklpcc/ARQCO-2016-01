@@ -126,10 +126,8 @@ bool Matrix::setBuffer(char *s)
 	lastIndexColor = lastRowUsed = 0;
 
 	for (int i = 0; i < len; ++i)
-	{
 		if (!appendCharacter(s[i]))
 			return false;
-	}
 	//lastRowUsed terminara apuntando al ultimo byte del ultimo caracter subido
 	//now, let animation flow (print)
 	return true;
@@ -155,9 +153,7 @@ bool Matrix::loadCharacter(byte character, unsigned int & start)
 	if (ch.size + start > _MAX_BUFFER_SIZE)
 		return false;
 	for (int i = 0; i < ch.size; ++i)
-	{
 		fakeBuffer[start++] = ch.getByte(i);
-	}
 	return true;
 }
 
@@ -169,9 +165,7 @@ bool Matrix::appendCharacter(byte character)
 	if (ch.size + lastRowUsed > _MAX_BUFFER_SIZE)
 		return false;
 	for (int i = 0; i < ch.size; ++i)
-	{
 		fakeBuffer[lastRowUsed++] = ch.getByte(i);
-	}
 	return true;
 }
 
@@ -313,7 +307,7 @@ void Matrix::loadToRealBufferHorizontally(int from, RGB color)
 	byte value;
 	for (int i = 0; i < _COLUMNS; ++i)
 	{
-		if (i + from < 0 || i + from > lastRowUsed)
+		if (i + from < 0 || i + from >= lastRowUsed)
 			value = 0;
 		else
 			value = fakeBuffer[i + from];

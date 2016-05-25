@@ -1,4 +1,4 @@
-#include "globarHeader.h"
+#include "globalHeader.h"
 
 /*
 	TODO: (* means in progress)
@@ -7,19 +7,23 @@
 		- Row at max brightness in 3 colors banishes blue
 
 		MOST IMPORTANT:
+		- rework Matrix.show method to make it iterable
 		-* finish all animations
-		- add asynchronous buttons for reset and animations
+		-* add asynchronous effects button
 		- increase the speed changing digitalWrite and similar functions within ISR
 
 		LEAST IMPORTANT
-		- enhance rgb
-		- maybe extend BCM to 8 bit resolution
+		-* add games support (tetris, space invaders, pong)
+		- enhance rgb (hsv support)
+		- extend BCM to 8 bit resolution
 		- test PWM instead of BCM
 		- add more comments
 
 	CHANGELOG:
-		- matrix class improved:
-		- now utf-8 string methods are inside matrix class
+		- reset button is just hardware
+		- start support for effects button
+		- start games support (tetris)
+		- Printable2 class created for draw objects in Matrix class
 */
 
 //14, 13, 12, 11 => 51 41 40 52
@@ -34,21 +38,10 @@
 volatile byte bitBCM, row;
 volatile unsigned int counterBCM, rowByte; //uint8_t¿?
 Matrix M(_CLOCK_SPEED_DIV_2, MSBFIRST, SPI_MODE0);
-
-byte pacman[2][5] = {{28,62,54,34,0},
-					{ 28,62,62,62,28 } };
-
-#define RIGHT 0
-#define LEFT 1
-#define DOWN 2
-
-const byte pieces[7][4] = { {1,3,2,0},
-						   {1,3,1,0},
-						   {2,3,1,0},
-						   {3,3,0,0},
-						   {1,1,3,0},
-						   {3,1,1,0},
-						   {1,1,1,1} };
+const byte bEffect = 21;
+byte actEffect;
+long debouncing_time = 250;
+volatile unsigned long last_micros;
 
 void setup()
 {
@@ -61,11 +54,11 @@ void setup()
 	pinMode(latch, OUTPUT);
 	pinMode(spi_data, OUTPUT);
 	pinMode(spi_clock, OUTPUT);
-	
-	pinMode(2, INPUT);
-	pinMode(3, INPUT);
-	pinMode(18, INPUT);
-	pinMode(19, INPUT);
+	pinMode(bEffect, INPUT);
+	attachInterrupt(digitalPinToInterrupt(bEffect), effect, RISING);
+
+	actEffect = 0;
+	last_micros = 0;
 
 	setupISR();
 	M.fillMatrix(caster(RGB(0,0,0)));
@@ -75,134 +68,29 @@ void setup()
 void loop()
 {
 	//animations
-	M.setBuffer("Ho");
+	M.setBuffer("a b");
+	//M.show(0, M.getLastRowUsed(), caster(RGB(6, 0, 15)), 3000, _STATIC);
+	//Serial.println(actEffect);
 	while (true)
 	{
-		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 3000, _STATIC);
-		delay(100);
-		M.show(0, M.getLastRowUsed(), caster(RGB(0, 0, 15)), 3000, _STATIC);
-		delay(100);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 6)), 3000, _STATIC);
+		delay(10);
 		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _RIGHT_TO_LEFT);
-		delay(100);
+		delay(60);
 		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _LEFT_TO_RIGHT);
-		delay(100);
-		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _TOP_TO_BOTTOM);
-		delay(100);
-		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _BOTTOM_TO_TOP);
-		delay(100);
-		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _TOP_TO_BOTTOM | _FADE_IN);
-		delay(100);
-		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 500, _BOTTOM_TO_TOP | _FADE_IN);
-		delay(100);
+		delay(60);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _TOP_TO_BOTTOM);
+		delay(60);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _BOTTOM_TO_TOP);
+		delay(60);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _TOP_TO_BOTTOM | _FADE_IN);
+		delay(60);
+		M.show(0, M.getLastRowUsed(), caster(RGB(15, 0, 0)), 200, _BOTTOM_TO_TOP | _FADE_IN);
+		delay(60);
 		M.fillMatrix(caster(RGB(0)));
-		delay(1000);
+		delay(120);
 	}
 }
-
-/*class TetrisPiece
-{
-	int top, left;
-	int rows, columns; //max 4 rows, and 4 columns
-	byte piece[4];
-	TetrisPiece(int p)
-	{
-		rows = 2;
-		columns = 3;
-		if (p == 3)
-			columns = 2;
-		else if (p == 6)
-			rows = 1, columns = 4;
-		for (int i = 0; i < 4; ++i)
-			piece[i] = pieces[p][i];
-	}
-	int move(int direction)
-	{
-		if (direction == RIGHT)
-		{
-			if (left + rows < _ROWS)
-			{
-				left += 1;
-				return 1;
-			}
-			else
-				return 0;
-		}
-		else if (direction == LEFT)
-		{
-			if (left - 1 >= 0)
-			{
-				left -= 1;
-				return 1;
-			}
-			else
-				return 0;
-		}
-		else if (direction == DOWN)
-		{
-			//colission dectection
-			//corregir confusion de filas y columnas
-			for (int j = 0; j < columns; ++j)
-			{
-				for (int i = 0; i < rows; ++i)
-				{
-					if (i + top > piece[j] & (1 << i))
-					{
-						if (LEDstate(i + top, j + left))
-						{
-							//col
-							return 2;
-						}
-					}
-				}
-			}
-			return 1;
-		}
-	}
-	bool turn(int direction)
-	{
-		if (direction == LEFT)
-		{
-
-		}
-		else if (direction == RIGHT)
-		{
-
-		}
-	}
-};*/
-
-/*void pacmanEfecto()
-{
-	//129 for walls
-	for (int i = 0; i < 64; ++i)
-	{
-		bool x = (random(0, 2) && (i > 8) && (buffer[i-1] == 65));
-		buffer[i] = 65 + (x ? 8 : 0);
-	}
-	for (int p = 0; p < 64 - _COLUMNS; ++p)
-	{
-		fillMatrix(caster(RGB(0)));
-		loadToRealBuffer(p);
-		for (int k = 0; k < 2; ++k)
-		{
-			int columnas = (k ? 5 : 4);
-			for (int i = 0; i < columnas; ++i)
-			{
-				byte value = pacman[k][i];
-				for (int j = 1; j < _ROWS-2; ++j)
-				{
-					if (value & (1 << j))
-					{
-						setLED(j, i, caster(RGB(3, 15, 0)));
-					}
-					else
-						setLED(j, i, caster(RGB(0)));
-				}
-			}
-			delay(260);
-		}
-	}
-}*/
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -268,4 +156,16 @@ void setupISR()
 	TCCR1B |= ((1 << WGM12) | (1 << CS11) | (1 << CS10));
 	OCR1A  = _SPEED; //set timer
 	TIMSK1 |= (1 << OCIE1A); //enable timer
+}
+
+void effect()
+{
+	if ((long)(micros() - last_micros) >= debouncing_time * 1000)
+	{
+		if (micros() - last_micros <= 1000000)
+			actEffect = (++actEffect) % _MAX_EFFECT;
+		else
+			actEffect = 0;
+		last_micros = micros();
+	}
 }

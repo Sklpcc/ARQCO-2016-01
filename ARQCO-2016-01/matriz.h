@@ -28,14 +28,11 @@ public:
 	unsigned int getLastRowUsed();
 	unsigned int getlastIndexColor();
 
-	
 	byte utf8ascii(byte ascii, byte &last);
 	String utf8ascii(const String &s);
 	void utf8ascii(char* s);
 
-	void clearBuffer();
-	
-	
+	void clearBuffer();	
 
 private:
 	byte buffer[3][_BCM_RESOLUTION][_ROWS][_MATRICES];
